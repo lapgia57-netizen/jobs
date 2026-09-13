@@ -20,76 +20,59 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       # ============================================================
-      # 1. Checkout source code
+      # 1. Lấy mã nguồn từ Repository
       # ============================================================
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # ============================================================
-      # 2. Setup Java
+      # 2. Cài đặt môi trường Java
       # ============================================================
       - name: Setup JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
+          # Tự động cache gradle để các lần build sau nhanh hơn
+          cache: 'gradle'
 
       # ============================================================
-      # 3. Kiểm tra môi trường & cấu trúc thư mục thực tế
-      # ============================================================
-      - name: Check environment
-        shell: bash
-        run: |
-          echo "===== JAVA ====="
-          java -version
-          echo ""
-          echo "===== PROJECT ROOT ====="
-          pwd
-          ls -la
-
-      # ============================================================
-      # 4. Khởi tạo hoặc cấp quyền Gradle Wrapper
-      # ============================================================
-      - name: Ensure Gradle Wrapper exists
-        shell: bash
-        run: |
-          # Kiểm tra xem gradlew nằm ở gốc hay trong JobFinderApp
-          TARGET_DIR="."
-          if [ -d "JobFinderApp" ]; then
-            TARGET_DIR="JobFinderApp"
-          fi
-          
-          cd "$TARGET_DIR"
-          if [ -f "./gradlew" ]; then
-            echo "Tìm thấy gradlew tại $TARGET_DIR, tiến hành cấp quyền thực thi..."
-            chmod +x ./gradlew
-          else
-            echo "Không tìm thấy gradlew, tự động tạo wrapper phiên bản 8.4..."
-            gradle wrapper --gradle-version 8.4
-            chmod +x ./gradlew
-          fi
-
-      # ============================================================
-      # 5. Build ứng dụng Android
+      # 3. Khởi tạo / Cấp quyền Gradle Wrapper và Build APK
       # ============================================================
       - name: Build with Gradle
         shell: bash
         run: |
-          TARGET_DIR="."
-          if [ -d "JobFinderApp" ]; then
-            TARGET_DIR="JobFinderApp"
+          # 1. Tự động xác định thư mục chứa code Android
+          if [ -d "JobFinderApp" ] && [ -f "JobFinderApp/build.gradle" ] || [ -f "JobFinderApp/build.gradle.kts" ]; then
+            WORKING_DIR="JobFinderApp"
+          else
+            WORKING_DIR="."
           fi
           
-          cd "$TARGET_DIR"
-          echo "Bắt đầu build file APK tại thư mục: $(pwd)"
+          echo "--> Thư mục làm việc được xác định là: $WORKING_DIR"
+          cd "$WORKING_DIR"
+          
+          # 2. Đảm bảo file gradlew có quyền thực thi hoặc tự tạo nếu thiếu
+          if [ -f "./gradlew" ]; then
+            echo "--> Tìm thấy gradlew, tiến hành cấp quyền thực thi..."
+            chmod +x ./gradlew
+          else
+            echo "--> Không tìm thấy gradlew, tiến hành tạo Gradle Wrapper mới..."
+            gradle wrapper --gradle-version 8.4
+            chmod +x ./gradlew
+          fi
+          
+          # 3. Chạy lệnh Build APK giải lập (Debug)
+          echo "--> Bắt đầu quá trình build file APK..."
           ./gradlew assembleDebug
 
       # ============================================================
-      # 6. Xuất và Lưu trữ file APK kết quả
+      # 4. Xuất và tải file APK về máy
       # ============================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobfinder-debug-apk
+          # Sử dụng dấu ** giúp GitHub tự tìm file APK ở mọi ngóc ngách dự án
           path: '**/build/outputs/apk/debug/*.apk'
           retention-days: 7
