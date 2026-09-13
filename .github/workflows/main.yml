@@ -15,211 +15,33 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      # =========================================
-      # 1. Checkout
-      # =========================================
+
       - name: Checkout
         uses: actions/checkout@v4
 
-      # =========================================
-      # 2. Java 17
-      # =========================================
       - name: Setup Java 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: '17'
+          cache: gradle
 
-      # =========================================
-      # 3. Gradle
-      # =========================================
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # =========================================
-      # 4. Kiểm tra project
-      # =========================================
-      - name: Check Android project
-        shell: bash
-        run: |
-          set -e
+      - name: Make gradlew executable
+        run: chmod +x gradlew
 
-          echo "===== PROJECT ====="
-          pwd
-          ls -la
+      - name: Build APK
+        run: ./gradlew assembleDebug --stacktrace --no-daemon
 
-          echo ""
-          echo "===== GRADLE FILES ====="
-
-          find . -maxdepth 3 -type f \
-            \( \
-              -name "build.gradle" \
-              -o -name "build.gradle.kts" \
-              -o -name "settings.gradle" \
-              -o -name "settings.gradle.kts" \
-            \) \
-            -print
-
-      # =========================================
-      # 5. FIX REPOSITORY CONFLICT
-      # =========================================
-      - name: Fix Gradle repositories
-        shell: bash
-        run: |
-          set -e
-
-          echo "===== FIXING REPOSITORIES ====="
-
-          if [ -f "settings.gradle" ]; then
-
-            echo "Found settings.gradle"
-
-            python3 <<'PY'
-          from pathlib import Path
-          import re
-
-          p = Path("settings.gradle")
-          s = p.read_text()
-
-          # PREFER_SETTINGS cho phép build.gradle thêm repository
-          s = s.replace(
-              "RepositoriesMode.PREFER_SETTINGS",
-              "RepositoriesMode.PREFER_PROJECT"
-          )
-
-          # Một số project dùng tên fully-qualified
-          s = s.replace(
-              "org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_SETTINGS",
-              "org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_PROJECT"
-          )
-
-          p.write_text(s)
-
-          print("settings.gradle fixed.")
-          PY
-
-          fi
-
-          if [ -f "settings.gradle.kts" ]; then
-
-            echo "Found settings.gradle.kts"
-
-            python3 <<'PY'
-          from pathlib import Path
-
-          p = Path("settings.gradle.kts")
-          s = p.read_text()
-
-          s = s.replace(
-              "RepositoriesMode.PREFER_SETTINGS",
-              "RepositoriesMode.PREFER_PROJECT"
-          )
-
-          s = s.replace(
-              "org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_SETTINGS",
-              "org.gradle.api.initialization.resolve.RepositoriesMode.PREFER_PROJECT"
-          )
-
-          p.write_text(s)
-
-          print("settings.gradle.kts fixed.")
-          PY
-
-          fi
-
-          echo ""
-          echo "===== SETTINGS AFTER FIX ====="
-
-          if [ -f "settings.gradle" ]; then
-            cat settings.gradle
-          fi
-
-          if [ -f "settings.gradle.kts" ]; then
-            cat settings.gradle.kts
-          fi
-
-      # =========================================
-      # 6. Xóa Gradle cache/project build cũ
-      # =========================================
-      - name: Clean Gradle state
-        shell: bash
-        run: |
-          rm -rf .gradle
-          rm -rf build
-          rm -rf app/build
-
-      # =========================================
-      # 7. Chọn Gradle Wrapper hoặc Gradle hệ thống
-      # =========================================
-      - name: Prepare Gradle
-        shell: bash
-        run: |
-          if [ -f "./gradlew" ]; then
-            echo "Using Gradle Wrapper"
-            chmod +x ./gradlew
-            echo "GRADLE_CMD=./gradlew" >> "$GITHUB_ENV"
-          else
-            echo "Gradle Wrapper not found."
-            echo "Using installed Gradle."
-            echo "GRADLE_CMD=gradle" >> "$GITHUB_ENV"
-          fi
-
-      # =========================================
-      # 8. Kiểm tra Gradle
-      # =========================================
-      - name: Check Gradle version
-        shell: bash
-        run: |
-          $GRADLE_CMD --version
-
-      # =========================================
-      # 9. Clean
-      # =========================================
-      - name: Clean project
-        shell: bash
-        run: |
-          $GRADLE_CMD clean \
-            --no-daemon \
-            --stacktrace
-
-      # =========================================
-      # 10. BUILD APK
-      # =========================================
-      - name: Build Debug APK
-        shell: bash
-        run: |
-          echo "======================================"
-          echo "BUILDING APK"
-          echo "======================================"
-
-          $GRADLE_CMD assembleDebug \
-            --no-daemon \
-            --stacktrace \
-            --info
-
-      # =========================================
-      # 11. Tìm APK
-      # =========================================
       - name: Find APK
-        shell: bash
-        run: |
-          echo "======================================"
-          echo "APK FILES"
-          echo "======================================"
+        run: find . -type f -name "*.apk" -print
 
-          find . \
-            -type f \
-            -name "*.apk" \
-            -print
-
-      # =========================================
-      # 12. Upload APK
-      # =========================================
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JobFinder-debug-apk
-          path: |
-            **/build/outputs/apk/debug/*.apk
+          name: JobFinder-debug
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 30
