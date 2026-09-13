@@ -37,43 +37,49 @@ jobs:
           distribution: temurin
           java-version: '17'
           cache: gradle
+          # Chỉ định đúng thư mục chứa Gradle để cache hoạt động
+          cache-dependency-path: JobFinderApp/gradle/wrapper/gradle-wrapper.properties
 
       # ============================================================
-      # 3. Kiểm tra Java / project
+      # 3. Cấp quyền và chạy Gradle Wrapper (Trỏ đúng vào JobFinderApp)
       # ============================================================
-      - name: Check environment
+      - name: Grant execute permission for gradlew
         shell: bash
         run: |
-          echo "===== JAVA ====="
-          java -version
-
-          echo ""
-          echo "===== PROJECT ====="
-          pwd
-          ls -la
+          cd JobFinderApp
+          if [ -f "./gradlew" ]; then
+            echo "Tìm thấy gradlew, tiến hành cấp quyền..."
+            chmod +x ./gradlew
+          else
+            echo "Không tìm thấy gradlew gốc, tự động tạo wrapper mới..."
+            gradle wrapper --gradle-version 8.4
+            chmod +x ./gradlew
+          fi
 
       # ============================================================
-      # 4. Build Android App (Sử dụng trực tiếp Gradle hệ thống)
-      # Bước này đã thay đổi: dùng 'gradle' thay vì './gradlew'
+      # 4. Sửa xung đột Repository & Build ứng dụng Android
       # ============================================================
       - name: Build with Gradle
         shell: bash
         run: |
-          echo "Dọn dẹp các khối repositories trùng lặp trong build.gradle để tránh lỗi cấu hình..."
+          cd JobFinderApp
+          
+          echo "Xóa bỏ các dòng repositories trùng lặp gây lỗi cấu hình..."
           if [ -f "build.gradle" ]; then
             sed -i '/google()/d' build.gradle
             sed -i '/mavenCentral()/d' build.gradle
           fi
           
-          echo "Bắt đầu build APK..."
-          gradle assembleDebug --warning-mode none
+          echo "Bắt đầu build APK ở chế độ Debug..."
+          ./gradlew assembleDebug
 
       # ============================================================
-      # 5. Upload APK Artifact
+      # 5. Xuất và Lưu trữ file APK kết quả
       # ============================================================
-      - name: Upload APK
+      - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobfinder-debug-apk
-          path: app/build/outputs/apk/debug/*.apk
+          # Đường dẫn chính xác trỏ vào thư mục build của JobFinderApp
+          path: JobFinderApp/app/build/outputs/apk/debug/*.apk
           retention-days: 7
