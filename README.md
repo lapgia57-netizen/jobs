@@ -9,7 +9,13 @@ Mỗi tin tuyển dụng được lưu **song song ở 3 nơi** bằng đúng 1 
 
 `visible` (true/false) quyết định tin có xuất hiện ở màn hình công khai hay không — **ẩn tin không xoá dữ liệu**, chủ tin vẫn thấy và quản lý được trong Dashboard riêng.
 
-Rule (`database.rules.json`) đã được siết chặt hơn so với bản gốc: dùng `ownerUid` (uid) thay vì so email, để nhất quán và khó giả mạo hơn; thêm quyền ghi cho `users/{uid}/jobs/{id}` chỉ khi `auth.uid == $uid`. **Nhớ deploy file `database.rules.json` mới này** trong Firebase Console → Realtime Database → Rules.
+Rule (`database.rules.json`) đã được siết chặt đúng luồng bảo mật:
+
+- `.read: true` (mọi người đọc được danh sách công khai).
+- `stories_index` / `stories_details`: chỉ user đã đăng nhập mới ghi được; khi **tạo mới** bắt buộc `newData.ownerUid == auth.uid`; khi **sửa/xoá** bắt buộc `data.ownerUid == auth.uid` và (nếu còn dữ liệu) `newData.ownerUid` vẫn phải là chính `auth.uid` — không cho đổi chủ tin.
+- `users/$uid/jobs`: chỉ chính chủ tài khoản (`auth.uid == $uid`) mới ghi được.
+
+**Nhớ deploy file `database.rules.json` mới này** trong Firebase Console → Realtime Database → Rules. App cũng đã bật disk persistence (`JobFinderApp`) để danh sách hiển thị mượt khi mở lại / offline.
 
 ## Dashboard riêng từng tài khoản (`DashboardActivity`)
 - Chỉ hiển thị tin của chính người đang đăng nhập (đọc `users/{uid}/jobs`).
