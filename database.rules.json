@@ -5,21 +5,13 @@
     "stories_index": {
       ".indexOn": ["createdAt", "visible", "ownerUid"],
       "$story_id": {
-        ".write": "auth != null && (
-          (!data.exists() && newData.child('ownerUid').val() == auth.uid) ||
-          (data.exists() && data.child('ownerUid').val() == auth.uid &&
-            (!newData.exists() || newData.child('ownerUid').val() == auth.uid))
-        )"
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerUid').val() == auth.uid) || (data.exists() && data.child('ownerUid').val() == auth.uid && (!newData.exists() || newData.child('ownerUid').val() == auth.uid)))"
       }
     },
 
     "stories_details": {
       "$story_id": {
-        ".write": "auth != null && (
-          (!data.exists() && newData.child('ownerUid').val() == auth.uid) ||
-          (data.exists() && data.child('ownerUid').val() == auth.uid &&
-            (!newData.exists() || newData.child('ownerUid').val() == auth.uid))
-        )"
+        ".write": "auth != null && ((!data.exists() && newData.child('ownerUid').val() == auth.uid) || (data.exists() && data.child('ownerUid').val() == auth.uid && (!newData.exists() || newData.child('ownerUid').val() == auth.uid)))"
       }
     },
 

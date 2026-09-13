@@ -14,6 +14,7 @@ import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.jobfinder.adapter.DashboardJobAdapter;
 import com.example.jobfinder.model.Job;
+import com.example.jobfinder.util.FirebaseConfig;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.auth.FirebaseUser;
@@ -70,7 +71,7 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
         fab.setOnClickListener(v ->
                 startActivity(new Intent(this, AddJobActivity.class)));
 
-        myJobsRef = FirebaseDatabase.getInstance()
+        myJobsRef = FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL)
                 .getReference("users").child(uid).child("jobs");
 
         listener = new ChildEventListener() {
@@ -124,7 +125,7 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
         updates.put("/stories_details/" + job.getId() + "/ownerUid", uid);
         updates.put("/users/" + uid + "/jobs/" + job.getId() + "/visible", makeVisible);
 
-        FirebaseDatabase.getInstance().getReference().updateChildren(updates)
+        FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference().updateChildren(updates)
                 .addOnSuccessListener(u -> {
                     job.setVisible(makeVisible);
                     jobsMap.put(job.getId(), job);
@@ -156,7 +157,7 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
         updates.put("/stories_index/" + job.getId(), null);
         updates.put("/stories_details/" + job.getId(), null);
         updates.put("/users/" + uid + "/jobs/" + job.getId(), null);
-        FirebaseDatabase.getInstance().getReference().updateChildren(updates)
+        FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference().updateChildren(updates)
                 .addOnSuccessListener(u -> Toast.makeText(this, "Đã xoá tin", Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e -> {
                     String msg = e.getMessage() != null ? e.getMessage() : "Unknown";

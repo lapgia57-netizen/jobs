@@ -10,6 +10,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.jobfinder.model.Job;
+import com.example.jobfinder.util.FirebaseConfig;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.FirebaseDatabase;
@@ -45,7 +46,7 @@ public class JobDetailActivity extends AppCompatActivity {
             return;
         }
 
-        FirebaseDatabase.getInstance().getReference("stories_details").child(jobId)
+        FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference("stories_details").child(jobId)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {

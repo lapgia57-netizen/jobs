@@ -20,6 +20,7 @@ import androidx.swiperefreshlayout.widget.SwipeRefreshLayout;
 
 import com.example.jobfinder.adapter.JobAdapter;
 import com.example.jobfinder.model.Job;
+import com.example.jobfinder.util.FirebaseConfig;
 import com.example.jobfinder.util.SearchUtils;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.android.material.textfield.TextInputEditText;
@@ -92,7 +93,7 @@ public class MainActivity extends AppCompatActivity implements JobAdapter.OnJobC
         recyclerView.setLayoutManager(lm);
         recyclerView.setAdapter(adapter);
 
-        indexRef = FirebaseDatabase.getInstance().getReference("stories_index");
+        indexRef = FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference("stories_index");
 
         swipeRefresh.setColorSchemeResources(R.color.brand_primary);
         swipeRefresh.setOnRefreshListener(this::reloadFromStart);

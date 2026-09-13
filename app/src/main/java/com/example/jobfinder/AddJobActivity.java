@@ -9,6 +9,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.widget.Toolbar;
 
 import com.example.jobfinder.model.Job;
+import com.example.jobfinder.util.FirebaseConfig;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
@@ -67,7 +68,7 @@ public class AddJobActivity extends AppCompatActivity {
     }
 
     private void loadExistingJob(String jobId) {
-        FirebaseDatabase.getInstance().getReference("stories_details").child(jobId)
+        FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference("stories_details").child(jobId)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
@@ -127,7 +128,7 @@ public class AddJobActivity extends AppCompatActivity {
 
         boolean isEdit = editJobId != null;
         String jobId = isEdit ? editJobId
-                : FirebaseDatabase.getInstance().getReference("stories_index").push().getKey();
+                : FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference("stories_index").push().getKey();
         if (jobId == null) {
             Toast.makeText(this, "Không tạo được ID, thử lại", Toast.LENGTH_SHORT).show();
             return;
@@ -178,7 +179,7 @@ public class AddJobActivity extends AppCompatActivity {
         }
 
         btnSave.setEnabled(false);
-        FirebaseDatabase.getInstance().getReference().updateChildren(multiPathUpdate)
+        FirebaseDatabase.getInstance(FirebaseConfig.DATABASE_URL).getReference().updateChildren(multiPathUpdate)
                 .addOnSuccessListener(unused -> {
                     Toast.makeText(this, isEdit ? "Đã cập nhật tin" : "Đã đăng tin", Toast.LENGTH_SHORT).show();
                     finish();
