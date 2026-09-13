@@ -26,56 +26,59 @@ jobs:
         uses: actions/checkout@v4
 
       # ============================================================
-      # 2. Cấu hình môi trường Java (Hỗ trợ code hoàn toàn bằng Java)
+      # 2. Cấu hình môi trường Java phục vụ dự án Java thuần
       # ============================================================
       - name: Setup JDK 17
         uses: actions/setup-java@v5
         with:
           distribution: 'temurin'
           java-version: '17'
-          cache: 'gradle' # Tự động tăng tốc độ build bằng cách lưu cache
 
       # ============================================================
-      # 3. Tự động tìm kiếm thư mục dự án và tiến hành Build APK
+      # 3. Tự động định vị Root Project và Build APK bằng Gradle phù hợp
       # ============================================================
-      - name: Auto-Detect Path and Build with Gradle
+      - name: Fix Path and Build Android App
         shell: bash
         run: |
-          echo "=====[ 1. TỰ ĐỘNG DÒ TÌM THƯ MỤC CHỨA CODE ]====="
-          # Tìm kiếm file build.gradle gần nhất để định vị thư mục gốc Android
-          GRADLE_FILE=$(find . -name "build.gradle" -o -name "build.gradle.kts" | head -n 1)
+          echo "=====[ 1. TỰ ĐỘNG DÒ TÌM THƯ MỤC GỐC DỰ ÁN ]====="
+          # Tìm file settings.gradle để xác định chính xác thư mục gốc (Root) của dự án Android
+          SETTINGS_FILE=$(find . -name "settings.gradle" -o -name "settings.gradle.kts" | head -n 1)
           
-          if [ -z "$GRADLE_FILE" ]; then
-            echo "❌ LỖI: Không tìm thấy bất kỳ file cấu hình build.gradle nào trong toàn bộ dự án!"
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "⚠️ Không thấy settings.gradle, thử tìm build.gradle ở tầng cao nhất..."
+            SETTINGS_FILE=$(find . -name "build.gradle" | sort | head -n 1)
+          fi
+          
+          if [ -z "$SETTINGS_FILE" ]; then
+            echo "❌ LỖI: Không định vị được cấu trúc dự án Android!"
             exit 1
           fi
           
-          # Lấy ra đường dẫn thư mục chứa file gradle đó
-          TARGET_DIR=$(dirname "$GRADLE_FILE")
-          echo "➡️ Đã phát hiện thư mục chứa mã nguồn Android tại: $TARGET_DIR"
+          TARGET_DIR=$(dirname "$SETTINGS_FILE")
+          echo "➡️ Thư mục gốc dự án được xác định tại: $TARGET_DIR"
           cd "$TARGET_DIR"
           
-          echo "=====[ 2. KHỞI TẠO HOẶC CẤP QUYỀN GRADLE WRAPPER ]====="
+          echo "=====[ 2. KHỞI TẠO HOẶC CẤP QUYỀN GRADLE WRAPPER V8.4 ]====="
+          # Ép hệ thống sử dụng phiên bản cố định Gradle 8.4 nhằm tránh lỗi xung đột trên GitHub
           if [ -f "./gradlew" ]; then
-            echo "-> Tìm thấy gradlew tại chỗ, cấp quyền thực thi..."
+            echo "-> Tìm thấy gradlew có sẵn, tiến hành cấp quyền thực thi..."
             chmod +x ./gradlew
           else
-            echo "-> Không thấy file gradlew có sẵn, tiến hành tự tạo mới Wrapper (v8.4)..."
+            echo "-> Tự động tạo cấu hình Gradle Wrapper bản ổn định 8.4..."
             gradle wrapper --gradle-version 8.4
             chmod +x ./gradlew
           fi
           
           echo "=====[ 3. TIẾN HÀNH BIÊN DỊCH FILE APK ]====="
-          ./gradlew assembleDebug
+          # Chạy lệnh biên dịch kèm hiển thị chi tiết stacktrace nếu phát sinh lỗi nguồn
+          ./gradlew assembleDebug --stacktrace
 
       # ============================================================
-      # 4. Xuất và đóng gói file APK để tải về máy mẫu
+      # 4. Đóng gói và xuất file APK ra ngoài tab Actions
       # ============================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobfinder-debug-apk
-          # Sử dụng cấu trúc wildcard (**) để GitHub Actions tự động tìm mọi file .apk 
-          # được sinh ra tại bất cứ phân vùng thư mục build nào mà không sợ sai đường dẫn.
           path: '**/build/outputs/apk/debug/*.apk'
           retention-days: 7
