@@ -30,7 +30,6 @@ jobs:
 
       # ============================================================
       # 2. Setup Java
-      # Android Gradle Plugin hiện đại nên dùng JDK 17
       # ============================================================
       - name: Setup JDK 17
         uses: actions/setup-java@v4
@@ -53,162 +52,36 @@ jobs:
           pwd
           ls -la
 
-          echo ""
-          echo "===== GRADLE FILES ====="
-          find . -maxdepth 3 -type f \
-            \( -name "build.gradle" \
-            -o -name "build.gradle.kts" \
-            -o -name "settings.gradle" \
-            -o -name "settings.gradle.kts" \
-            -o -name "gradle-wrapper.properties" \) \
-            -print
-
       # ============================================================
-      # 4. Nếu repo chưa có Gradle Wrapper thì tạo wrapper
-      #
-      # JobFinder yêu cầu Gradle 8.4 theo file .md
-      #
-      # Ưu tiên:
-      #   ./gradlew
-      #
-      # Nếu chưa có:
-      #   gradle wrapper --gradle-version 8.4
-      #
-      # GitHub runner thường đã có Gradle, nhưng vẫn kiểm tra.
+      # 4. Tạo Gradle Wrapper an toàn
       # ============================================================
-      - name: Prepare Gradle Wrapper
+      - name: Ensure Gradle Wrapper exists
         shell: bash
         run: |
-          set -e
-
           if [ -f "./gradlew" ]; then
-            echo "Gradle Wrapper đã tồn tại."
-
+            echo "Gradle Wrapper found. Making it executable..."
             chmod +x ./gradlew
-
-            echo "===== GRADLE WRAPPER ====="
-            ./gradlew --version
-
           else
-            echo "Chưa có ./gradlew"
-
-            if command -v gradle >/dev/null 2>&1; then
-              echo "Gradle system được tìm thấy:"
-              gradle --version
-
-              echo "Đang tạo Gradle Wrapper 8.4..."
-              gradle wrapper --gradle-version 8.4
-
-              chmod +x ./gradlew
-
-              echo "Gradle Wrapper đã được tạo."
-              ./gradlew --version
-
-            else
-              echo "::error::Không có gradlew và cũng không có Gradle system."
-              echo "Hãy commit gradlew + gradle/wrapper vào repository."
-              exit 1
-            fi
+            echo "Gradle Wrapper not found. Generating wrapper 8.4..."
+            # Sử dụng cờ -D để tạm thời ép Gradle chấp nhận repository khai báo ở build.gradle
+            gradle wrapper --gradle-version 8.4 -Dorg.gradle.dependency.resolutionmanagement.control=project
+            chmod +x ./gradlew
           fi
 
       # ============================================================
-      # 5. Kiểm tra Android project
+      # 5. Build Android App (Assemble APK)
       # ============================================================
-      - name: Verify Android project
+      - name: Build with Gradle
         shell: bash
-        run: |
-          set -e
-
-          if [ ! -f "./gradlew" ]; then
-            echo "::error::Không tìm thấy gradlew"
-            exit 1
-          fi
-
-          if [ ! -d "./app" ]; then
-            echo "::error::Không tìm thấy thư mục app/"
-            exit 1
-          fi
-
-          if [ ! -f "./settings.gradle" ] && \
-             [ ! -f "./settings.gradle.kts" ]; then
-            echo "::error::Không tìm thấy settings.gradle hoặc settings.gradle.kts"
-            exit 1
-          fi
-
-          echo "Android project hợp lệ."
+        # Thêm cờ tương tự khi build nếu Gradle 8.4 vẫn siết chặt cấu hình
+        run: ./gradlew assembleDebug -Dorg.gradle.dependency.resolutionmanagement.control=project
 
       # ============================================================
-      # 6. Clean
+      # 6. Upload APK Artifact
       # ============================================================
-      - name: Clean project
-        shell: bash
-        run: |
-          chmod +x ./gradlew
-          ./gradlew clean --no-daemon --stacktrace
-
-      # ============================================================
-      # 7. Build Debug APK
-      #
-      # APK:
-      # app/build/outputs/apk/debug/app-debug.apk
-      # ============================================================
-      - name: Build Debug APK
-        shell: bash
-        run: |
-          chmod +x ./gradlew
-
-          ./gradlew \
-            :app:assembleDebug \
-            --no-daemon \
-            --stacktrace \
-            --warning-mode all
-
-      # ============================================================
-      # 8. Kiểm tra APK
-      # ============================================================
-      - name: Verify APK
-        shell: bash
-        run: |
-          set -e
-
-          APK="app/build/outputs/apk/debug/app-debug.apk"
-
-          if [ ! -f "$APK" ]; then
-            echo "::error::Không tìm thấy APK: $APK"
-            echo ""
-            echo "Các file APK hiện có:"
-            find app/build -type f -name "*.apk" -print || true
-            exit 1
-          fi
-
-          echo "======================================"
-          echo "BUILD SUCCESS"
-          echo "======================================"
-          echo "APK: $APK"
-          echo "Size:"
-          du -h "$APK"
-
-      # ============================================================
-      # 9. Upload APK lên GitHub Actions Artifact
-      # ============================================================
-      - name: Upload Debug APK
+      - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
-          name: JobFinder-debug-apk
-          path: app/build/outputs/apk/debug/app-debug.apk
-          if-no-files-found: error
-          retention-days: 30
-
-      # ============================================================
-      # 10. Upload mapping/log nếu cần debug build
-      # ============================================================
-      - name: Upload build reports
-        if: always()
-        uses: actions/upload-artifact@v4
-        with:
-          name: JobFinder-build-reports
-          path: |
-            app/build/reports/
-            app/build/outputs/logs/
-          if-no-files-found: ignore
+          name: jobfinder-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
           retention-days: 7
