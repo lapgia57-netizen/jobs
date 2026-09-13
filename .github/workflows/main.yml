@@ -53,18 +53,31 @@ jobs:
           ls -la
 
       # ============================================================
-      # 4. Tạo Gradle Wrapper an toàn
+      # 4. Sửa xung đột Repository & Khởi tạo Gradle Wrapper
       # ============================================================
       - name: Ensure Gradle Wrapper exists
         shell: bash
         run: |
+          echo "Dọn dẹp tạm thời các khối repositories xung đột trong build.gradle..."
+          
+          # Xóa các dòng chứa google() hoặc mavenCentral() gây lỗi cấu hình trùng lặp
+          if [ -f "build.gradle" ]; then
+            sed -i '/google()/d' build.gradle
+            sed -i '/mavenCentral()/d' build.gradle
+          fi
+
+          if [ -f "build.gradle.kts" ]; then
+            sed -i '/google()/d' build.gradle.kts
+            sed -i '/mavenCentral()/d' build.gradle.kts
+          fi
+
+          # Tiến hành kiểm tra và tạo Wrapper độc lập
           if [ -f "./gradlew" ]; then
             echo "Gradle Wrapper found. Making it executable..."
             chmod +x ./gradlew
           else
             echo "Gradle Wrapper not found. Generating wrapper 8.4..."
-            # Sử dụng cờ -D để tạm thời ép Gradle chấp nhận repository khai báo ở build.gradle
-            gradle wrapper --gradle-version 8.4 -Dorg.gradle.dependency.resolutionmanagement.control=project
+            gradle wrapper --gradle-version 8.4
             chmod +x ./gradlew
           fi
 
@@ -73,8 +86,7 @@ jobs:
       # ============================================================
       - name: Build with Gradle
         shell: bash
-        # Thêm cờ tương tự khi build nếu Gradle 8.4 vẫn siết chặt cấu hình
-        run: ./gradlew assembleDebug -Dorg.gradle.dependency.resolutionmanagement.control=project
+        run: ./gradlew assembleDebug
 
       # ============================================================
       # 6. Upload APK Artifact
