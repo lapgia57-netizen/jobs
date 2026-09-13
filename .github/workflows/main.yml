@@ -2,38 +2,43 @@ name: Build APK
 
 on:
   push:
-    branches: [ "main" ]
-  workflow_dispatch: {}
+    branches:
+      - main
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
 
     steps:
-    - name: Checkout code
-      uses: actions/checkout@v4
+      # Lấy source code
+      - name: Checkout code
+        uses: actions/checkout@v4
 
-    - name: Set up JDK 17
-      uses: actions/setup-java@v4
-      with:
-        distribution: 'temurin'
-        java-version: '17'
-        cache: 'gradle'
+      # Cài JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '17'
+          cache: gradle
 
-    # Sử dụng setup-gradle để tự động tối ưu bộ nhớ đệm (cache) cho Wrapper có sẵn
-    - name: Setup Gradle
-      uses: gradle/actions/setup-gradle@v4
+      # Thiết lập Gradle
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v4
 
-    # Cấp quyền thực thi cho script wrapper (Bắt buộc trên môi trường Linux của Github Actions)
-    - name: Grant execute permission for gradlew
-      run: chmod +x ./gradlew
+      # Cấp quyền chạy Gradle Wrapper
+      - name: Grant execute permission for gradlew
+        run: chmod +x ./gradlew
 
-    # Dùng ./gradlew thay vì gradle hệ thống để đảm bảo tính đồng nhất
-    - name: Build debug APK
-      run: ./gradlew assembleDebug
+      # Build Debug APK
+      - name: Build debug APK
+        run: ./gradlew assembleDebug
 
-    - name: Upload APK artifact
-      uses: actions/upload-artifact@v4
-      with:
-        name: JobFinder-debug-apk
-        path: "**/build/outputs/apk/debug/*.apk"
+      # Upload APK
+      - name: Upload APK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: JobFinder-debug-apk
+          path: "**/build/outputs/apk/debug/*.apk"
+          if-no-files-found: error
