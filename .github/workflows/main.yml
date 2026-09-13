@@ -18,23 +18,33 @@ jobs:
         with:
           distribution: 'temurin'
           java-version: '17'
-          # Tối ưu: Bật cache mặc định của setup-java cho gradle
           cache: 'gradle'
 
-      # Tối ưu: Sử dụng action setup-gradle chính thức giúp tối ưu hóa cấu hình & tăng tốc độ build
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # Sửa lỗi: Tự động di chuyển vào thư mục chứa gradlew trước khi cấp quyền và build
       - name: Grant execute permission for gradlew
-        run: chmod +x gradlew
+        run: |
+          GRADLEW_DIR=$(find . -name gradlew -exec dirname {} \;)
+          if [ -z "$GRADLEW_DIR" ]; then
+            echo "Error: Không tìm thấy file gradlew trong dự án. Hãy chắc chắn bạn đã commit file này lên Git."
+            exit 1
+          fi
+          echo "Tìm thấy gradlew tại thư mục: $GRADLEW_DIR"
+          cd $GRADLEW_DIR
+          chmod +x gradlew
 
+      # Sửa lỗi: Chạy lệnh build đúng tại thư mục chứa file gradlew đó
       - name: Build debug APK
-        # Tối ưu: Bỏ --stacktrace khi không cần thiết để log sạch hơn và build nhanh hơn một chút
-        run: ./gradlew assembleDebug
+        run: |
+          GRADLEW_DIR=$(find . -name gradlew -exec dirname {} \;)
+          cd $GRADLEW_DIR
+          ./gradlew assembleDebug
 
+      # Sửa lỗi: Quét tìm file APK ở mọi thư mục con để upload
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: JobFinder-debug-apk
-          # Tối ưu: Dùng dấu * để đảm bảo tìm đúng file APK ngay cả khi cấu hình build thay đổi tên file
-          path: app/build/outputs/apk/debug/*.apk
+          path: "**/build/outputs/apk/debug/*.apk"
