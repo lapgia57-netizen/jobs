@@ -171,6 +171,12 @@ public class AddJobActivity extends AppCompatActivity {
         multiPathUpdate.put("/stories_details/" + jobId, detailData);
         multiPathUpdate.put("/users/" + uid + "/jobs/" + jobId, userJobData);
 
+        // Đảm bảo ownerUid luôn có giá trị (rule yêu cầu bắt buộc)
+        if (TextUtils.isEmpty(uid)) {
+            Toast.makeText(this, "Không lấy được UID người dùng", Toast.LENGTH_LONG).show();
+            return;
+        }
+
         btnSave.setEnabled(false);
         FirebaseDatabase.getInstance().getReference().updateChildren(multiPathUpdate)
                 .addOnSuccessListener(unused -> {
@@ -179,7 +185,12 @@ public class AddJobActivity extends AppCompatActivity {
                 })
                 .addOnFailureListener(e -> {
                     btnSave.setEnabled(true);
-                    Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
+                    String msg = e.getMessage() != null ? e.getMessage() : "Unknown error";
+                    // Hiển thị rõ hơn khi bị rule chặn
+                    if (msg.toLowerCase().contains("permission") || msg.toLowerCase().contains("denied")) {
+                        msg = "Permission denied – kiểm tra Rules đã deploy chưa & đã đăng nhập đúng tài khoản. Chi tiết: " + msg;
+                    }
+                    Toast.makeText(this, "Lỗi lưu: " + msg, Toast.LENGTH_LONG).show();
                 });
     }
 

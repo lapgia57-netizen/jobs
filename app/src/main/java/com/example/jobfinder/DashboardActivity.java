@@ -115,11 +115,21 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
 
     @Override
     public void onToggleVisible(Job job, boolean makeVisible) {
+        // Luôn ghi kèm ownerUid để rule newData.child('ownerUid') == auth.uid luôn pass
+        // (kể cả khi node cũ thiếu field ownerUid → trước đây hay bị Permission denied)
         Map<String, Object> updates = new LinkedHashMap<>();
         updates.put("/stories_index/" + job.getId() + "/visible", makeVisible);
+        updates.put("/stories_index/" + job.getId() + "/ownerUid", uid);
         updates.put("/stories_details/" + job.getId() + "/visible", makeVisible);
+        updates.put("/stories_details/" + job.getId() + "/ownerUid", uid);
         updates.put("/users/" + uid + "/jobs/" + job.getId() + "/visible", makeVisible);
+
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
+                .addOnSuccessListener(u -> {
+                    job.setVisible(makeVisible);
+                    jobsMap.put(job.getId(), job);
+                    refreshList();
+                })
                 .addOnFailureListener(e -> Toast.makeText(this,
                         "Không cập nhật được: " + e.getMessage(), Toast.LENGTH_LONG).show());
     }
@@ -148,8 +158,13 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
         updates.put("/users/" + uid + "/jobs/" + job.getId(), null);
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
                 .addOnSuccessListener(u -> Toast.makeText(this, "Đã xoá tin", Toast.LENGTH_SHORT).show())
-                .addOnFailureListener(e -> Toast.makeText(this,
-                        "Không xoá được: " + e.getMessage(), Toast.LENGTH_LONG).show());
+                .addOnFailureListener(e -> {
+                    String msg = e.getMessage() != null ? e.getMessage() : "Unknown";
+                    if (msg.toLowerCase().contains("permission") || msg.toLowerCase().contains("denied")) {
+                        msg = "Permission denied – chỉ chủ tin mới được xoá. " + msg;
+                    }
+                    Toast.makeText(this, "Không xoá được: " + msg, Toast.LENGTH_LONG).show();
+                });
     }
 
     @Override
