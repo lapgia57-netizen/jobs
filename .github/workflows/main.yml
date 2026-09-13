@@ -23,26 +23,20 @@ jobs:
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Sửa lỗi: Tự động di chuyển vào thư mục chứa gradlew trước khi cấp quyền và build
-      - name: Grant execute permission for gradlew
+      # Giải pháp: Tự động tải cài đặt Gradle hệ thống và tạo file gradlew nếu thiếu
+      - name: Generate Gradle Wrapper if missing
         run: |
-          GRADLEW_DIR=$(find . -name gradlew -exec dirname {} \;)
-          if [ -z "$GRADLEW_DIR" ]; then
-            echo "Error: Không tìm thấy file gradlew trong dự án. Hãy chắc chắn bạn đã commit file này lên Git."
-            exit 1
+          if [ ! -f "gradlew" ]; then
+            echo "Không tìm thấy gradlew. Đang tự động cài đặt gradle-cli để khởi tạo wrapper..."
+            sudo apt-get update && sudo apt-get install -y gradle
+            gradle wrapper
           fi
-          echo "Tìm thấy gradlew tại thư mục: $GRADLEW_DIR"
-          cd $GRADLEW_DIR
           chmod +x gradlew
 
-      # Sửa lỗi: Chạy lệnh build đúng tại thư mục chứa file gradlew đó
       - name: Build debug APK
-        run: |
-          GRADLEW_DIR=$(find . -name gradlew -exec dirname {} \;)
-          cd $GRADLEW_DIR
-          ./gradlew assembleDebug
+        run: ./gradlew assembleDebug
 
-      # Sửa lỗi: Quét tìm file APK ở mọi thư mục con để upload
+      # Tìm và quét tất cả các file APK được sinh ra để upload
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
