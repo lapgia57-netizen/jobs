@@ -29,57 +29,67 @@ jobs:
         uses: actions/checkout@v4
 
       # ============================================================
-      # 2. Setup Java
+      # 2. Setup Java (Nâng cấp lên v5, bỏ qua check cache properties sớm)
       # ============================================================
       - name: Setup JDK 17
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@v5
         with:
           distribution: temurin
           java-version: '17'
-          cache: gradle
-          # Chỉ định đúng thư mục chứa Gradle để cache hoạt động
-          cache-dependency-path: JobFinderApp/gradle/wrapper/gradle-wrapper.properties
 
       # ============================================================
-      # 3. Cấp quyền và chạy Gradle Wrapper (Trỏ đúng vào JobFinderApp)
+      # 3. Kiểm tra Java / project
       # ============================================================
-      - name: Grant execute permission for gradlew
+      - name: Check environment
+        shell: bash
+        run: |
+          echo "===== JAVA ====="
+          java -version
+
+          echo ""
+          echo "===== PROJECT ====="
+          pwd
+          ls -la
+
+      # ============================================================
+      # 4. Khởi tạo Gradle Wrapper độc lập trong thư mục JobFinderApp
+      # ============================================================
+      - name: Ensure Gradle Wrapper exists
         shell: bash
         run: |
           cd JobFinderApp
           if [ -f "./gradlew" ]; then
-            echo "Tìm thấy gradlew, tiến hành cấp quyền..."
+            echo "Tìm thấy gradlew, tiến hành cấp quyền thực thi..."
             chmod +x ./gradlew
           else
-            echo "Không tìm thấy gradlew gốc, tự động tạo wrapper mới..."
+            echo "Không tìm thấy gradlew, tự động tạo wrapper phiên bản 8.4..."
             gradle wrapper --gradle-version 8.4
             chmod +x ./gradlew
           fi
 
       # ============================================================
-      # 4. Sửa xung đột Repository & Build ứng dụng Android
+      # 5. Sửa xung đột Repository & Build ứng dụng Android
       # ============================================================
       - name: Build with Gradle
         shell: bash
         run: |
           cd JobFinderApp
           
-          echo "Xóa bỏ các dòng repositories trùng lặp gây lỗi cấu hình..."
+          echo "Dọn dẹp các khối repositories trùng lặp trong build.gradle..."
           if [ -f "build.gradle" ]; then
             sed -i '/google()/d' build.gradle
             sed -i '/mavenCentral()/d' build.gradle
           fi
           
-          echo "Bắt đầu build APK ở chế độ Debug..."
+          echo "Bắt đầu build file APK..."
           ./gradlew assembleDebug
 
       # ============================================================
-      # 5. Xuất và Lưu trữ file APK kết quả
+      # 6. Xuất và Lưu trữ file APK kết quả
       # ============================================================
       - name: Upload APK Artifact
         uses: actions/upload-artifact@v4
         with:
           name: jobfinder-debug-apk
-          # Đường dẫn chính xác trỏ vào thư mục build của JobFinderApp
           path: JobFinderApp/app/build/outputs/apk/debug/*.apk
           retention-days: 7
