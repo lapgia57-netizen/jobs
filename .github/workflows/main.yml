@@ -20,23 +20,17 @@ jobs:
           java-version: '17'
           cache: 'gradle'
 
+      # Giải pháp mới: Cài đặt trực tiếp phiên bản Gradle hệ thống thay vì dùng wrapper
       - name: Setup Gradle
         uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: '8.5' # Bạn có thể đổi sang '8.10' hoặc phiên bản phù hợp dự án của bạn
 
-      # Giải pháp: Tự động tải cài đặt Gradle hệ thống và tạo file gradlew nếu thiếu
-      - name: Generate Gradle Wrapper if missing
-        run: |
-          if [ ! -f "gradlew" ]; then
-            echo "Không tìm thấy gradlew. Đang tự động cài đặt gradle-cli để khởi tạo wrapper..."
-            sudo apt-get update && sudo apt-get install -y gradle
-            gradle wrapper
-          fi
-          chmod +x gradlew
-
+      # Không cần chmod +x gradlew nữa vì chúng ta dùng lệnh hệ thống trực tiếp
       - name: Build debug APK
-        run: ./gradlew assembleDebug
+        run: gradle assembleDebug
 
-      # Tìm và quét tất cả các file APK được sinh ra để upload
+      # Quét và upload tất cả file APK được tạo ra
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
