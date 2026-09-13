@@ -1,0 +1,26 @@
+{
+  "rules": {
+    ".read": true,
+    "stories_index": {
+      ".indexOn": ["createdAt", "visible", "ownerUid"],
+      "$story_id": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() == auth.uid)"
+      }
+    },
+    "stories_details": {
+      "$story_id": {
+        ".write": "auth != null && (!data.exists() || data.child('ownerUid').val() == auth.uid)"
+      }
+    },
+    "users": {
+      "$uid": {
+        "jobs": {
+          ".indexOn": ["createdAt"],
+          "$story_id": {
+            ".write": "auth != null && auth.uid == $uid"
+          }
+        }
+      }
+    }
+  }
+}

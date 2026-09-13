@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "279038115572",
+    "project_id": "quyangianghokhongmangthesu",
+    "storage_bucket": "quyangianghokhongmangthesu.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:279038115572:android:REPLACE_ME",
+        "android_client_info": {
+          "package_name": "com.example.jobfinder"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCDdE8cAE38BtGFdR49ClALh0FIx2OH-iw"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

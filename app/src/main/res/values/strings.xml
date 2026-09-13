@@ -1,0 +1,29 @@
+<resources>
+    <string name="app_name">JobFinder</string>
+    <string name="email_hint">Email</string>
+    <string name="password_hint">Mật khẩu</string>
+    <string name="login_button">Đăng nhập</string>
+    <string name="register_prompt">Chưa có tài khoản? Đăng ký</string>
+    <string name="register_title">Tạo tài khoản</string>
+    <string name="register_button">Đăng ký</string>
+    <string name="job_title_hint">Vị trí tuyển dụng</string>
+    <string name="job_company_hint">Công ty</string>
+    <string name="job_location_hint">Địa điểm</string>
+    <string name="job_salary_hint">Mức lương</string>
+    <string name="job_desc_hint">Mô tả công việc</string>
+    <string name="job_source_hint">Nguồn (link tin tuyển dụng)</string>
+    <string name="save_job">Lưu tin</string>
+    <string name="add_job_fab">Đăng tin mới</string>
+    <string name="search_keyword_hint">Từ khoá (vị trí, công ty, địa điểm)</string>
+    <string name="search_location_hint">Địa điểm</string>
+    <string name="search_min_salary_hint">Lương tối thiểu (triệu)</string>
+    <string name="result_count_format">Tìm thấy %1$d tin phù hợp</string>
+    <string name="dashboard_title">Dashboard của tôi</string>
+    <string name="dashboard_menu_item">Dashboard của tôi</string>
+    <string name="job_salary_min_hint">Lương tối thiểu (triệu, để lọc tìm kiếm)</string>
+    <string name="job_salary_max_hint">Lương tối đa (triệu)</string>
+    <string name="edit_job_title">Sửa tin</string>
+    <string name="delete_confirm_title">Xoá tin?</string>
+    <string name="delete_confirm_message">Tin đã xoá sẽ không thể khôi phục. Bạn chắc chắn muốn xoá?</string>
+    <string name="empty_dashboard">Bạn chưa đăng tin nào. Bấm nút + để đăng tin đầu tiên.</string>
+</resources>

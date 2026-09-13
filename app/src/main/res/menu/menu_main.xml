@@ -1,0 +1,11 @@
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/action_dashboard"
+        android:title="@string/dashboard_menu_item"
+        android:icon="@android:drawable/ic_menu_manage"
+        android:showAsAction="ifRoom" />
+    <item
+        android:id="@+id/action_logout"
+        android:title="Đăng xuất"
+        android:showAsAction="ifRoom" />
+</menu>
