@@ -10,29 +10,30 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+    - name: Checkout code
+      uses: actions/checkout@v4
 
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
-        with:
-          distribution: 'temurin'
-          java-version: '17'
-          cache: 'gradle'
+    - name: Set up JDK 17
+      uses: actions/setup-java@v4
+      with:
+        distribution: 'temurin'
+        java-version: '17'
+        cache: 'gradle'
 
-      # Giải pháp mới: Cài đặt trực tiếp phiên bản Gradle hệ thống thay vì dùng wrapper
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v4
-        with:
-          gradle-version: '8.5' # Bạn có thể đổi sang '8.10' hoặc phiên bản phù hợp dự án của bạn
+    # Sử dụng setup-gradle để tự động tối ưu bộ nhớ đệm (cache) cho Wrapper có sẵn
+    - name: Setup Gradle
+      uses: gradle/actions/setup-gradle@v4
 
-      # Không cần chmod +x gradlew nữa vì chúng ta dùng lệnh hệ thống trực tiếp
-      - name: Build debug APK
-        run: gradle assembleDebug
+    # Cấp quyền thực thi cho script wrapper (Bắt buộc trên môi trường Linux của Github Actions)
+    - name: Grant execute permission for gradlew
+      run: chmod +x ./gradlew
 
-      # Quét và upload tất cả file APK được tạo ra
-      - name: Upload APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: JobFinder-debug-apk
-          path: "**/build/outputs/apk/debug/*.apk"
+    # Dùng ./gradlew thay vì gradle hệ thống để đảm bảo tính đồng nhất
+    - name: Build debug APK
+      run: ./gradlew assembleDebug
+
+    - name: Upload APK artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: JobFinder-debug-apk
+        path: "**/build/outputs/apk/debug/*.apk"
