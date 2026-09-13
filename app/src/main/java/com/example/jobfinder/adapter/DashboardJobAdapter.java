@@ -3,14 +3,15 @@ package com.example.jobfinder.adapter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.ImageButton;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
+import androidx.core.content.ContextCompat;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.jobfinder.R;
 import com.example.jobfinder.model.Job;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.switchmaterial.SwitchMaterial;
 
 import java.util.ArrayList;
@@ -34,14 +35,15 @@ public class DashboardJobAdapter extends RecyclerView.Adapter<DashboardJobAdapte
 
     public void submitList(List<Job> newJobs) {
         jobs.clear();
-        jobs.addAll(newJobs);
+        if (newJobs != null) jobs.addAll(newJobs);
         notifyDataSetChanged();
     }
 
     @NonNull
     @Override
     public VH onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_dashboard_job, parent, false);
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_dashboard_job, parent, false);
         return new VH(v);
     }
 
@@ -49,10 +51,18 @@ public class DashboardJobAdapter extends RecyclerView.Adapter<DashboardJobAdapte
     public void onBindViewHolder(@NonNull VH holder, int position) {
         Job job = jobs.get(position);
         holder.tvTitle.setText(job.getTitle());
-        holder.tvCompany.setText(job.getCompany());
-        holder.tvStatus.setText(job.isVisible() ? "Đang hiển thị công khai" : "Đã ẩn");
+        holder.tvCompany.setText(job.getCompany() != null ? job.getCompany() : "");
 
-        // Gỡ listener cũ trước khi setChecked để tránh trigger callback ngoài ý muốn khi bind lại.
+        if (job.isVisible()) {
+            holder.tvStatus.setText(R.string.visible_public);
+            holder.tvStatus.setBackgroundResource(R.drawable.bg_status_visible);
+            holder.tvStatus.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.brand_success));
+        } else {
+            holder.tvStatus.setText(R.string.visible_hidden);
+            holder.tvStatus.setBackgroundResource(R.drawable.bg_status_hidden);
+            holder.tvStatus.setTextColor(ContextCompat.getColor(holder.itemView.getContext(), R.color.brand_danger));
+        }
+
         holder.switchVisible.setOnCheckedChangeListener(null);
         holder.switchVisible.setChecked(job.isVisible());
         holder.switchVisible.setOnCheckedChangeListener((buttonView, isChecked) ->
@@ -71,7 +81,7 @@ public class DashboardJobAdapter extends RecyclerView.Adapter<DashboardJobAdapte
     static class VH extends RecyclerView.ViewHolder {
         TextView tvTitle, tvCompany, tvStatus;
         SwitchMaterial switchVisible;
-        ImageButton btnEdit, btnDelete;
+        MaterialButton btnEdit, btnDelete;
 
         VH(@NonNull View itemView) {
             super(itemView);

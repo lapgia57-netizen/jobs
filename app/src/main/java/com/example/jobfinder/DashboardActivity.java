@@ -1,14 +1,14 @@
 package com.example.jobfinder;
 
-import android.app.AlertDialog;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.View;
-import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
+import androidx.appcompat.app.AlertDialog;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
@@ -16,105 +16,109 @@ import com.example.jobfinder.adapter.DashboardJobAdapter;
 import com.example.jobfinder.model.Job;
 import com.google.android.material.floatingactionbutton.FloatingActionButton;
 import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
+import com.google.firebase.database.ChildEventListener;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
-/**
- * Dashboard riêng của TỪNG tài khoản: chỉ đọc "users/{uid}/jobs" - tức chỉ 1
- * đường dẫn duy nhất, không phải quét toàn bộ "stories_index" rồi lọc theo
- * createdBy như cách làm cũ (chậm hơn khi dữ liệu lớn). Đây là lý do dữ liệu
- * được ghi trùng lặp có chủ đích vào node "users" khi đăng tin.
- *
- * Từ đây, chủ tin có thể: bật/tắt hiển thị công khai (ẩn/hiện), sửa, xoá tin
- * của chính mình.
- */
 public class DashboardActivity extends AppCompatActivity implements DashboardJobAdapter.Callback {
 
     private RecyclerView recyclerView;
+    private View emptyState;
     private DashboardJobAdapter adapter;
-    private TextView tvEmpty;
     private DatabaseReference myJobsRef;
-    private ValueEventListener valueEventListener;
+    private ChildEventListener listener;
     private String uid;
+
+    private final Map<String, Job> jobsMap = new LinkedHashMap<>();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_dashboard);
-        setTitle(R.string.dashboard_title);
 
-        if (FirebaseAuth.getInstance().getCurrentUser() == null) {
-            startActivity(new Intent(this, LoginActivity.class));
+        FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+        if (user == null) {
             finish();
             return;
         }
-        uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
+        uid = user.getUid();
 
-        recyclerView = findViewById(R.id.recyclerViewDashboard);
-        recyclerView.setLayoutManager(new LinearLayoutManager(this));
+        Toolbar toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
+
+        recyclerView = findViewById(R.id.recyclerView);
+        emptyState = findViewById(R.id.emptyState);
+        FloatingActionButton fab = findViewById(R.id.fabAdd);
+
         adapter = new DashboardJobAdapter(this);
+        recyclerView.setLayoutManager(new LinearLayoutManager(this));
         recyclerView.setAdapter(adapter);
 
-        tvEmpty = findViewById(R.id.tvEmptyDashboard);
+        fab.setOnClickListener(v ->
+                startActivity(new Intent(this, AddJobActivity.class)));
 
-        FloatingActionButton fab = findViewById(R.id.fabAddJobDashboard);
-        fab.setOnClickListener(v -> startActivity(new Intent(this, AddJobActivity.class)));
+        myJobsRef = FirebaseDatabase.getInstance()
+                .getReference("users").child(uid).child("jobs");
 
-        myJobsRef = FirebaseDatabase.getInstance().getReference("users").child(uid).child("jobs");
-        attachListener();
-    }
-
-    private void attachListener() {
-        valueEventListener = new ValueEventListener() {
+        listener = new ChildEventListener() {
             @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                List<Job> jobs = new ArrayList<>();
-                for (DataSnapshot child : snapshot.getChildren()) {
-                    Job job = child.getValue(Job.class);
-                    if (job != null) {
-                        job.setId(child.getKey());
-                        jobs.add(job);
-                    }
-                }
-                Collections.sort(jobs, (a, b) -> Long.compare(b.getCreatedAt(), a.getCreatedAt()));
-                adapter.submitList(jobs);
-                tvEmpty.setVisibility(jobs.isEmpty() ? View.VISIBLE : View.GONE);
+            public void onChildAdded(@NonNull DataSnapshot snapshot, String previousChildName) {
+                Job job = snapshot.getValue(Job.class);
+                if (job == null) return;
+                job.setId(snapshot.getKey());
+                jobsMap.put(job.getId(), job);
+                refreshList();
             }
 
             @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Toast.makeText(DashboardActivity.this, "Lỗi tải dữ liệu: " + error.getMessage(), Toast.LENGTH_LONG).show();
+            public void onChildChanged(@NonNull DataSnapshot snapshot, String previousChildName) {
+                Job job = snapshot.getValue(Job.class);
+                if (job == null) return;
+                job.setId(snapshot.getKey());
+                jobsMap.put(job.getId(), job);
+                refreshList();
+            }
+
+            @Override
+            public void onChildRemoved(@NonNull DataSnapshot snapshot) {
+                jobsMap.remove(snapshot.getKey());
+                refreshList();
+            }
+
+            @Override public void onChildMoved(@NonNull DataSnapshot snapshot, String previousChildName) {}
+            @Override public void onCancelled(@NonNull DatabaseError error) {
+                Toast.makeText(DashboardActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
             }
         };
-        myJobsRef.addValueEventListener(valueEventListener);
+        myJobsRef.addChildEventListener(listener);
     }
 
-    @Override
-    protected void onDestroy() {
-        super.onDestroy();
-        if (valueEventListener != null) {
-            myJobsRef.removeEventListener(valueEventListener);
-        }
+    private void refreshList() {
+        List<Job> list = new ArrayList<>(jobsMap.values());
+        Collections.sort(list, (a, b) -> Long.compare(b.getCreatedAt(), a.getCreatedAt()));
+        adapter.submitList(list);
+        emptyState.setVisibility(list.isEmpty() ? View.VISIBLE : View.GONE);
     }
 
     @Override
     public void onToggleVisible(Job job, boolean makeVisible) {
-        // Cập nhật "visible" đồng thời ở cả 3 nơi bằng 1 multi-path update duy nhất,
-        // đảm bảo danh sách công khai (MainActivity) và dashboard luôn nhất quán ngay lập tức.
-        Map<String, Object> updates = new HashMap<>();
+        Map<String, Object> updates = new LinkedHashMap<>();
         updates.put("/stories_index/" + job.getId() + "/visible", makeVisible);
         updates.put("/stories_details/" + job.getId() + "/visible", makeVisible);
         updates.put("/users/" + uid + "/jobs/" + job.getId() + "/visible", makeVisible);
-
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
                 .addOnFailureListener(e -> Toast.makeText(this,
                         "Không cập nhật được: " + e.getMessage(), Toast.LENGTH_LONG).show());
@@ -122,9 +126,9 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
 
     @Override
     public void onEdit(Job job) {
-        Intent intent = new Intent(this, AddJobActivity.class);
-        intent.putExtra("edit_job_id", job.getId());
-        startActivity(intent);
+        Intent i = new Intent(this, AddJobActivity.class);
+        i.putExtra("edit_job_id", job.getId());
+        startActivity(i);
     }
 
     @Override
@@ -132,27 +136,34 @@ public class DashboardActivity extends AppCompatActivity implements DashboardJob
         new AlertDialog.Builder(this)
                 .setTitle(R.string.delete_confirm_title)
                 .setMessage(R.string.delete_confirm_message)
-                .setPositiveButton("Xoá", (dialog, which) -> doDelete(job))
+                .setPositiveButton("Xoá", (d, w) -> doDelete(job))
                 .setNegativeButton("Huỷ", null)
                 .show();
     }
 
     private void doDelete(Job job) {
-        Map<String, Object> updates = new HashMap<>();
+        Map<String, Object> updates = new LinkedHashMap<>();
         updates.put("/stories_index/" + job.getId(), null);
         updates.put("/stories_details/" + job.getId(), null);
         updates.put("/users/" + uid + "/jobs/" + job.getId(), null);
-
         FirebaseDatabase.getInstance().getReference().updateChildren(updates)
-                .addOnSuccessListener(unused -> Toast.makeText(this, "Đã xoá tin", Toast.LENGTH_SHORT).show())
+                .addOnSuccessListener(u -> Toast.makeText(this, "Đã xoá tin", Toast.LENGTH_SHORT).show())
                 .addOnFailureListener(e -> Toast.makeText(this,
                         "Không xoá được: " + e.getMessage(), Toast.LENGTH_LONG).show());
     }
 
     @Override
     public void onClick(Job job) {
-        Intent intent = new Intent(this, JobDetailActivity.class);
-        intent.putExtra("job_id", job.getId());
-        startActivity(intent);
+        Intent i = new Intent(this, JobDetailActivity.class);
+        i.putExtra("job_id", job.getId());
+        startActivity(i);
+    }
+
+    @Override
+    protected void onDestroy() {
+        super.onDestroy();
+        if (myJobsRef != null && listener != null) {
+            myJobsRef.removeEventListener(listener);
+        }
     }
 }

@@ -1,18 +1,12 @@
 package com.example.jobfinder.util;
 
+import com.example.jobfinder.model.Job;
+
 import java.text.Normalizer;
 import java.util.regex.Pattern;
 
 /**
- * Chuẩn hoá chuỗi tiếng Việt để so khớp tìm kiếm chính xác, không phụ thuộc
- * hoa/thường hay dấu câu, khoảng trắng thừa:
- *   "Hà Nội"  ->  "ha noi"
- *   "  Đà  Nẵng "  ->  "da nang"
- *
- * Việc chuẩn hoá cả dữ liệu lưu trữ lẫn từ khoá người dùng nhập giúp so khớp
- * đúng bản chất nội dung thay vì so khớp chuỗi thô (dễ sai vì dấu tiếng Việt),
- * đây là nền tảng để bộ lọc tìm kiếm hoạt động "chặt chẽ": mọi điều kiện đều
- * được so khớp trên cùng 1 chuẩn dữ liệu, không có trường hợp lọt vì khác dấu.
+ * Chuẩn hoá tiếng Việt + lọc AND chặt chẽ trên title/company/location + lương tối thiểu.
  */
 public final class SearchUtils {
 
@@ -36,7 +30,6 @@ public final class SearchUtils {
         return normalizedQuery.split(" ");
     }
 
-    /** True nếu "haystack" (đã chuẩn hoá hoặc chưa đều được) chứa TẤT CẢ các từ trong "words". */
     public static boolean containsAllWords(String haystackRaw, String[] words) {
         if (words.length == 0) return true;
         String haystack = normalize(haystackRaw);
@@ -44,5 +37,49 @@ public final class SearchUtils {
             if (!haystack.contains(w)) return false;
         }
         return true;
+    }
+
+    /**
+     * Mọi điều kiện đã nhập phải đúng đồng thời (AND).
+     * keyword: tất cả từ phải xuất hiện trong title + company + location.
+     * location: tất cả từ phải xuất hiện trong location.
+     * minSalary (triệu): salaryMax >= minSalary * 1_000_000 (nếu salaryMax > 0),
+     *   hoặc salaryMin >= minSalary * 1_000_000.
+     */
+    public static boolean matches(Job job, String keyword, String location, long minSalaryMillion) {
+        if (job == null) return false;
+
+        String kw = normalize(keyword);
+        if (!kw.isEmpty()) {
+            String hay = (nullToEmpty(job.getTitle()) + " "
+                    + nullToEmpty(job.getCompany()) + " "
+                    + nullToEmpty(job.getLocation()));
+            if (!containsAllWords(hay, toWords(kw))) return false;
+        }
+
+        String loc = normalize(location);
+        if (!loc.isEmpty()) {
+            if (!containsAllWords(nullToEmpty(job.getLocation()), toWords(loc))) return false;
+        }
+
+        if (minSalaryMillion > 0) {
+            long threshold = minSalaryMillion * 1_000_000L;
+            long max = job.getSalaryMax();
+            long min = job.getSalaryMin();
+            // Ưu tiên salaryMax; nếu không có thì dùng salaryMin
+            if (max > 0) {
+                if (max < threshold) return false;
+            } else if (min > 0) {
+                if (min < threshold) return false;
+            } else {
+                // Không có số lương → không khớp bộ lọc lương
+                return false;
+            }
+        }
+        return true;
+    }
+
+    private static String nullToEmpty(String s) {
+        return s == null ? "" : s;
     }
 }

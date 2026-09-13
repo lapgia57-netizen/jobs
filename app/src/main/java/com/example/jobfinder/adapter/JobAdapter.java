@@ -6,7 +6,6 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
-import androidx.recyclerview.widget.DiffUtil;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.jobfinder.R;
@@ -15,81 +14,111 @@ import com.example.jobfinder.model.Job;
 import java.util.ArrayList;
 import java.util.List;
 
-/**
- * Adapter cho danh sách "Tất cả việc làm" (công khai, đã lọc theo tìm kiếm).
- * Dùng submitList() để thay toàn bộ dữ liệu hiển thị mỗi khi bộ lọc tìm kiếm
- * hoặc dữ liệu gốc thay đổi - kèm DiffUtil để chỉ re-bind đúng phần thay đổi,
- * tránh giật danh sách khi người dùng gõ tìm kiếm liên tục.
- */
-public class JobAdapter extends RecyclerView.Adapter<JobAdapter.JobViewHolder> {
+public class JobAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
+
+    private static final int TYPE_JOB = 0;
+    private static final int TYPE_LOADING = 1;
 
     public interface OnJobClickListener {
         void onJobClick(Job job);
     }
 
-    private final List<Job> displayedJobs = new ArrayList<>();
+    private final List<Job> jobs = new ArrayList<>();
     private final OnJobClickListener listener;
+    private boolean showLoadingFooter = false;
 
     public JobAdapter(OnJobClickListener listener) {
         this.listener = listener;
     }
 
     public void submitList(List<Job> newJobs) {
-        DiffUtil.DiffResult diff = DiffUtil.calculateDiff(new DiffUtil.Callback() {
-            @Override
-            public int getOldListSize() { return displayedJobs.size(); }
+        jobs.clear();
+        if (newJobs != null) jobs.addAll(newJobs);
+        notifyDataSetChanged();
+    }
 
-            @Override
-            public int getNewListSize() { return newJobs.size(); }
+    public void appendList(List<Job> more) {
+        if (more == null || more.isEmpty()) return;
+        int start = jobs.size();
+        jobs.addAll(more);
+        notifyItemRangeInserted(start, more.size());
+    }
 
-            @Override
-            public boolean areItemsTheSame(int oldPos, int newPos) {
-                return displayedJobs.get(oldPos).getId().equals(newJobs.get(newPos).getId());
-            }
+    public void setShowLoadingFooter(boolean show) {
+        if (this.showLoadingFooter == show) return;
+        this.showLoadingFooter = show;
+        if (show) {
+            notifyItemInserted(jobs.size());
+        } else {
+            notifyItemRemoved(jobs.size());
+        }
+    }
 
-            @Override
-            public boolean areContentsTheSame(int oldPos, int newPos) {
-                Job a = displayedJobs.get(oldPos);
-                Job b = newJobs.get(newPos);
-                return a.getTitle().equals(b.getTitle())
-                        && a.getCompany().equals(b.getCompany())
-                        && a.getLocation().equals(b.getLocation());
-            }
-        });
-        displayedJobs.clear();
-        displayedJobs.addAll(newJobs);
-        diff.dispatchUpdatesTo(this);
+    public List<Job> getCurrentList() {
+        return new ArrayList<>(jobs);
+    }
+
+    @Override
+    public int getItemViewType(int position) {
+        if (showLoadingFooter && position == jobs.size()) return TYPE_LOADING;
+        return TYPE_JOB;
     }
 
     @NonNull
     @Override
-    public JobViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
-        View v = LayoutInflater.from(parent.getContext()).inflate(R.layout.item_job, parent, false);
-        return new JobViewHolder(v);
+    public RecyclerView.ViewHolder onCreateViewHolder(@NonNull ViewGroup parent, int viewType) {
+        if (viewType == TYPE_LOADING) {
+            View v = LayoutInflater.from(parent.getContext())
+                    .inflate(R.layout.item_loading, parent, false);
+            return new LoadingVH(v);
+        }
+        View v = LayoutInflater.from(parent.getContext())
+                .inflate(R.layout.item_job, parent, false);
+        return new JobVH(v);
     }
 
     @Override
-    public void onBindViewHolder(@NonNull JobViewHolder holder, int position) {
-        Job job = displayedJobs.get(position);
-        holder.tvTitle.setText(job.getTitle());
-        holder.tvCompany.setText(job.getCompany());
-        holder.tvLocation.setText(job.getLocation());
-        holder.itemView.setOnClickListener(v -> listener.onJobClick(job));
+    public void onBindViewHolder(@NonNull RecyclerView.ViewHolder holder, int position) {
+        if (holder instanceof JobVH) {
+            Job job = jobs.get(position);
+            JobVH h = (JobVH) holder;
+            h.tvTitle.setText(job.getTitle());
+            h.tvCompany.setText(job.getCompany() != null ? job.getCompany() : "");
+            String loc = job.getLocation();
+            h.tvLocation.setText(loc != null && !loc.isEmpty() ? "📍 " + loc : "📍 Không rõ");
+            String salary = job.getSalary();
+            if (salary != null && !salary.isEmpty()) {
+                h.tvSalary.setVisibility(View.VISIBLE);
+                h.tvSalary.setText(salary);
+            } else {
+                h.tvSalary.setVisibility(View.GONE);
+            }
+            h.itemView.setOnClickListener(v -> {
+                if (listener != null) listener.onJobClick(job);
+            });
+        }
     }
 
     @Override
     public int getItemCount() {
-        return displayedJobs.size();
+        return jobs.size() + (showLoadingFooter ? 1 : 0);
     }
 
-    static class JobViewHolder extends RecyclerView.ViewHolder {
-        TextView tvTitle, tvCompany, tvLocation;
+    static class JobVH extends RecyclerView.ViewHolder {
+        TextView tvTitle, tvCompany, tvLocation, tvSalary;
 
-        JobViewHolder(@NonNull View itemView) {
+        JobVH(@NonNull View itemView) {
             super(itemView);
             tvTitle = itemView.findViewById(R.id.tvTitle);
             tvCompany = itemView.findViewById(R.id.tvCompany);
             tvLocation = itemView.findViewById(R.id.tvLocation);
+            tvSalary = itemView.findViewById(R.id.tvSalary);
+        }
+    }
+
+    static class LoadingVH extends RecyclerView.ViewHolder {
+        LoadingVH(@NonNull View itemView) {
+            super(itemView);
         }
     }
 }

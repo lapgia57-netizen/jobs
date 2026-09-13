@@ -2,18 +2,18 @@ package com.example.jobfinder;
 
 import android.os.Bundle;
 import android.text.TextUtils;
-import android.widget.Button;
-import android.widget.EditText;
 import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.appcompat.widget.Toolbar;
 
 import com.example.jobfinder.model.Job;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.textfield.TextInputEditText;
 import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
-import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
@@ -21,24 +21,17 @@ import java.util.HashMap;
 import java.util.Map;
 
 /**
- * Đăng tin mới HOẶC sửa tin đã đăng (nếu Intent có extra "edit_job_id").
- *
- * Ghi/ cập nhật đồng thời 3 nơi bằng MỘT lệnh updateChildren() duy nhất
- * (multi-path update) - chỉ tốn 1 round-trip mạng:
- *   /stories_index/{id}        - bản rút gọn, hiển thị công khai
- *   /stories_details/{id}      - bản đầy đủ
- *   /users/{uid}/jobs/{id}     - bản rút gọn riêng cho Dashboard của chủ tin
- *
- * salaryMin/salaryMax là số (đơn vị: triệu VNĐ) để màn hình tìm kiếm có thể
- * lọc chính xác bằng phép so sánh số học, thay vì đoán từ chuỗi "10-15 triệu".
+ * Đăng tin mới hoặc sửa tin (extra "edit_job_id").
+ * Ghi đồng thời 3 path bằng updateChildren().
  */
 public class AddJobActivity extends AppCompatActivity {
 
-    private EditText edtTitle, edtCompany, edtLocation, edtSalary, edtSalaryMin, edtSalaryMax,
-            edtDescription, edtSource;
-    private Button btnSave;
+    private TextInputEditText edtTitle, edtCompany, edtLocation, edtSalary,
+            edtSalaryMin, edtSalaryMax, edtDescription, edtSource;
+    private MaterialButton btnSave;
+    private Toolbar toolbar;
 
-    private String editJobId; // null nếu đang tạo tin mới
+    private String editJobId;
     private long originalCreatedAt;
     private boolean originalVisible = true;
 
@@ -47,19 +40,26 @@ public class AddJobActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         setContentView(R.layout.activity_add_job);
 
+        toolbar = findViewById(R.id.toolbar);
+        setSupportActionBar(toolbar);
+        if (getSupportActionBar() != null) {
+            getSupportActionBar().setDisplayHomeAsUpEnabled(true);
+        }
+        toolbar.setNavigationOnClickListener(v -> finish());
+
         edtTitle = findViewById(R.id.edtJobTitle);
         edtCompany = findViewById(R.id.edtJobCompany);
         edtLocation = findViewById(R.id.edtJobLocation);
         edtSalary = findViewById(R.id.edtJobSalary);
-        edtSalaryMin = findViewById(R.id.edtJobSalaryMin);
-        edtSalaryMax = findViewById(R.id.edtJobSalaryMax);
+        edtSalaryMin = findViewById(R.id.edtSalaryMin);
+        edtSalaryMax = findViewById(R.id.edtSalaryMax);
         edtDescription = findViewById(R.id.edtJobDescription);
         edtSource = findViewById(R.id.edtJobSource);
-        btnSave = findViewById(R.id.btnSaveJob);
+        btnSave = findViewById(R.id.btnSave);
 
         editJobId = getIntent().getStringExtra("edit_job_id");
         if (editJobId != null) {
-            setTitle(R.string.edit_job_title);
+            toolbar.setTitle(R.string.edit_job_title);
             loadExistingJob(editJobId);
         }
 
@@ -67,47 +67,47 @@ public class AddJobActivity extends AppCompatActivity {
     }
 
     private void loadExistingJob(String jobId) {
-        btnSave.setEnabled(false);
         FirebaseDatabase.getInstance().getReference("stories_details").child(jobId)
                 .addListenerForSingleValueEvent(new ValueEventListener() {
                     @Override
                     public void onDataChange(@NonNull DataSnapshot snapshot) {
-                        btnSave.setEnabled(true);
                         Job job = snapshot.getValue(Job.class);
                         if (job == null) {
-                            Toast.makeText(AddJobActivity.this, "Không tìm thấy tin cần sửa", Toast.LENGTH_LONG).show();
+                            Toast.makeText(AddJobActivity.this, "Không tải được tin", Toast.LENGTH_SHORT).show();
                             finish();
                             return;
                         }
-                        originalCreatedAt = job.getCreatedAt();
-                        originalVisible = job.isVisible();
                         edtTitle.setText(job.getTitle());
                         edtCompany.setText(job.getCompany());
                         edtLocation.setText(job.getLocation());
                         edtSalary.setText(job.getSalary());
-                        edtSalaryMin.setText(job.getSalaryMin() > 0 ? String.valueOf(job.getSalaryMin()) : "");
-                        edtSalaryMax.setText(job.getSalaryMax() > 0 ? String.valueOf(job.getSalaryMax()) : "");
+                        if (job.getSalaryMin() > 0) edtSalaryMin.setText(String.valueOf(job.getSalaryMin() / 1_000_000L));
+                        if (job.getSalaryMax() > 0) edtSalaryMax.setText(String.valueOf(job.getSalaryMax() / 1_000_000L));
                         edtDescription.setText(job.getDescription());
                         edtSource.setText(job.getSource());
+                        originalCreatedAt = job.getCreatedAt();
+                        originalVisible = job.isVisible();
                     }
 
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        btnSave.setEnabled(true);
-                        Toast.makeText(AddJobActivity.this, "Lỗi tải tin: " + error.getMessage(), Toast.LENGTH_LONG).show();
+                        Toast.makeText(AddJobActivity.this, error.getMessage(), Toast.LENGTH_SHORT).show();
                     }
                 });
     }
 
     private void saveJob() {
-        String title = edtTitle.getText().toString().trim();
-        String company = edtCompany.getText().toString().trim();
-        String location = edtLocation.getText().toString().trim();
-        String salary = edtSalary.getText().toString().trim();
-        String description = edtDescription.getText().toString().trim();
-        String source = edtSource.getText().toString().trim();
-        long salaryMin = parseLongOrZero(edtSalaryMin.getText().toString().trim());
-        long salaryMax = parseLongOrZero(edtSalaryMax.getText().toString().trim());
+        String title = text(edtTitle);
+        String company = text(edtCompany);
+        String location = text(edtLocation);
+        String salary = text(edtSalary);
+        String description = text(edtDescription);
+        String source = text(edtSource);
+        // Người dùng nhập số triệu; lưu thành VND * 1_000_000 để lọc
+        long salaryMinMil = parseLongOrZero(text(edtSalaryMin));
+        long salaryMaxMil = parseLongOrZero(text(edtSalaryMax));
+        long salaryMin = salaryMinMil * 1_000_000L;
+        long salaryMax = salaryMaxMil * 1_000_000L;
 
         if (TextUtils.isEmpty(title) || TextUtils.isEmpty(company)) {
             Toast.makeText(this, "Vui lòng nhập ít nhất vị trí và công ty", Toast.LENGTH_SHORT).show();
@@ -117,11 +117,11 @@ public class AddJobActivity extends AppCompatActivity {
             Toast.makeText(this, "Lương tối thiểu không được lớn hơn lương tối đa", Toast.LENGTH_SHORT).show();
             return;
         }
-
         if (FirebaseAuth.getInstance().getCurrentUser() == null) {
             Toast.makeText(this, "Phiên đăng nhập đã hết hạn", Toast.LENGTH_SHORT).show();
             return;
         }
+
         String uid = FirebaseAuth.getInstance().getCurrentUser().getUid();
         String email = FirebaseAuth.getInstance().getCurrentUser().getEmail();
 
@@ -143,6 +143,8 @@ public class AddJobActivity extends AppCompatActivity {
         indexData.put("ownerUid", uid);
         indexData.put("visible", visible);
         indexData.put("createdAt", createdAt);
+        // salary hiển thị trên card list nếu có
+        if (!TextUtils.isEmpty(salary)) indexData.put("salary", salary);
 
         Map<String, Object> detailData = new HashMap<>();
         detailData.put("title", title);
@@ -158,7 +160,6 @@ public class AddJobActivity extends AppCompatActivity {
         detailData.put("visible", visible);
         detailData.put("createdAt", createdAt);
 
-        // Bản rút gọn cho Dashboard riêng của chủ tin (đọc trực tiếp users/{uid}/jobs, không cần quét toàn bộ index).
         Map<String, Object> userJobData = new HashMap<>();
         userJobData.put("title", title);
         userJobData.put("company", company);
@@ -180,6 +181,10 @@ public class AddJobActivity extends AppCompatActivity {
                     btnSave.setEnabled(true);
                     Toast.makeText(this, "Lỗi: " + e.getMessage(), Toast.LENGTH_LONG).show();
                 });
+    }
+
+    private static String text(TextInputEditText edt) {
+        return edt.getText() != null ? edt.getText().toString().trim() : "";
     }
 
     private long parseLongOrZero(String s) {
